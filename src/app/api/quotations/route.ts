@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Decimal } from "@prisma/client/runtime/client";
-import { convertToBaseUnit } from "@/lib/units";
+import { Decimal } from "decimal.js";
+import { convertToBaseUnit, calculatePrice } from "@/lib/units";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { items } = body; // items array: { productId, enteredQuantity, enteredUnit, unitPrice }
+    const { items } = body; // items array: { productId, enteredQuantity, enteredUnit }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Quotation must contain at least one item." }, { status: 400 });
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       const quotationItemsData = [];
 
       for (const item of items) {
-        const { productId, enteredQuantity, enteredUnit, unitPrice } = item;
+        const { productId, enteredQuantity, enteredUnit } = item;
 
         const product = await tx.product.findUnique({
           where: { id: productId },
@@ -56,10 +56,21 @@ export async function POST(req: NextRequest) {
           throw new Error(`Product with ID ${productId} not found.`);
         }
 
+        if (!product.isActive) {
+          throw new Error(`Product "${product.name}" is inactive.`);
+        }
+
         const qtyDecimal = new Decimal(enteredQuantity);
+        if (qtyDecimal.lte(0)) {
+          throw new Error(`Quantity for "${product.name}" must be greater than zero.`);
+        }
+
+        // Convert quantity to base unit
         const convertedQty = convertToBaseUnit(qtyDecimal, enteredUnit);
-        const priceDecimal = new Decimal(unitPrice);
-        const lineTotal = qtyDecimal.mul(priceDecimal);
+
+        // Fetch price per base unit from database (prevent client override)
+        const pricePerBase = new Decimal(product.pricePerBaseUnit.toString());
+        const lineTotal = calculatePrice(qtyDecimal, enteredUnit, pricePerBase);
         totalAmount = totalAmount.add(lineTotal);
 
         quotationItemsData.push({
@@ -67,7 +78,7 @@ export async function POST(req: NextRequest) {
           enteredQuantity: qtyDecimal,
           enteredUnit,
           convertedQuantity: convertedQty,
-          unitPrice: priceDecimal,
+          unitPrice: pricePerBase,
           lineTotal,
         });
       }

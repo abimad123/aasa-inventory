@@ -1,11 +1,11 @@
 "use client";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Package, History, LogOut, LayoutDashboard, FileText } from "lucide-react";
+import { Package, History, LogOut, LayoutDashboard, FileText, ShoppingCart } from "lucide-react";
 
 interface SidebarProps {
   activeTab: string;
-  setActiveTab: (tab: "products" | "logs" | "quotes") => void;
+  setActiveTab: (tab: "products" | "logs" | "quotes" | "orders") => void;
   userName?: string | null;
   userEmail?: string | null;
 }
@@ -18,6 +18,7 @@ export default function Sidebar({ activeTab, setActiveTab, userName, userEmail }
     { key: "products" as const, label: "Products", icon: Package },
     { key: "logs" as const, label: "Inventory Logs", icon: History },
     { key: "quotes" as const, label: "Quotations", icon: FileText },
+    { key: "orders" as const, label: "Orders", icon: ShoppingCart },
   ];
 
   return (
@@ -47,7 +48,7 @@ export default function Sidebar({ activeTab, setActiveTab, userName, userEmail }
       <div className="p-4 border-t border-slate-800">
         <div className="mb-3 px-1">
           <p className="text-sm font-medium text-white truncate">{userName}</p>
-          <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+          <p className="text-xs text-slate-505 truncate">{userEmail}</p>
         </div>
         <button onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">

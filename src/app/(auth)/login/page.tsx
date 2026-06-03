@@ -2,7 +2,8 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LayoutDashboard, AlertTriangle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { LayoutDashboard, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -11,6 +12,7 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -23,6 +25,8 @@ function LoginForm() {
   useEffect(() => {
     const errorParam = searchParams.get("error");
     if (errorParam === "AccessDenied") setError("Access denied. Please log in with the correct role.");
+    const registeredParam = searchParams.get("registered");
+    if (registeredParam === "true") setSuccessMessage("Account created successfully! Please sign in below.");
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,6 +81,12 @@ function LoginForm() {
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h2>
           <p className="text-sm text-slate-500 mb-8">Sign in to your account to continue</p>
 
+          {successMessage && (
+            <div className="mb-6 p-3.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex items-start gap-2.5">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" /><span>{successMessage}</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm flex items-start gap-2.5">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /><span>{error}</span>
@@ -99,6 +109,10 @@ function LoginForm() {
               {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing In...</> : "Sign In"}
             </button>
           </form>
+
+          <div className="mt-6 text-center text-xs text-slate-505">
+            Don&apos;t have an account? <Link href="/register" className="font-semibold text-slate-900 hover:underline">Register as Seller</Link>
+          </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100 text-center text-xs text-slate-400 space-y-1">
             <p>Demo: admin@aasa.com / Admin123</p>

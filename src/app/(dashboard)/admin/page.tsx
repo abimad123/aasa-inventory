@@ -2,7 +2,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Search, Loader2, CheckCircle2, Pencil, Trash2, RefreshCw, Package, Menu, X, LogOut, FileText, User } from "lucide-react";
+import { Plus, Search, Loader2, CheckCircle2, Pencil, Trash2, RefreshCw, Package, Menu, X, LogOut, FileText, User, ShoppingCart, ArrowRight, Eye, Calculator } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Sidebar from "@/components/admin/Sidebar";
 import MetricsCards from "@/components/admin/MetricsCards";
@@ -26,19 +26,29 @@ interface Quotation {
   id: string; status: string; totalAmount: string; createdAt: string;
   user: { name: string; email: string }; items: QuotationItem[];
 }
+interface OrderItem {
+  id: string; enteredQuantity: string; enteredUnit: string; convertedQuantity: string;
+  unitPrice: string; lineTotal: string; product: Product;
+}
+interface Order {
+  id: string; status: string; totalAmount: string; createdAt: string;
+  user: { name: string; email: string }; items: OrderItem[];
+}
 
 const CATEGORIES = ["All", "Weight", "Volume", "Count", "Bulk", "Electronics", "General"];
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"products" | "logs" | "quotes">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "logs" | "quotes" | "orders">("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [loadingQuotes, setLoadingQuotes] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
@@ -48,6 +58,9 @@ export default function AdminDashboard() {
   const [deactivateTarget, setDeactivateTarget] = useState<Product | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
+
+  // Selected Order for detail math model inspector
+  const [inspectedOrder, setInspectedOrder] = useState<Order | null>(null);
 
   const showToast = useCallback((msg: string) => { setToastMessage(msg); setTimeout(() => setToastMessage(null), 4000); }, []);
 
@@ -72,10 +85,22 @@ export default function AdminDashboard() {
     finally { setLoadingQuotes(false); }
   }, []);
 
+  const fetchOrders = useCallback(async () => {
+    setLoadingOrders(true);
+    try { const r = await fetch("/api/orders"); if (r.ok) setOrders(await r.json()); }
+    catch (e) { console.error(e); }
+    finally { setLoadingOrders(false); }
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
-    else if (status === "authenticated") { fetchProducts(); fetchTransactions(); fetchQuotations(); }
-  }, [status, router, fetchProducts, fetchTransactions, fetchQuotations]);
+    else if (status === "authenticated") {
+      fetchProducts();
+      fetchTransactions();
+      fetchQuotations();
+      fetchOrders();
+    }
+  }, [status, router, fetchProducts, fetchTransactions, fetchQuotations, fetchOrders]);
 
   const handleToggleActive = async (product: Product) => {
     try {
@@ -87,7 +112,47 @@ export default function AdminDashboard() {
     } catch { showToast("Failed to toggle status."); }
   };
 
-  const refreshAll = () => { fetchProducts(); fetchTransactions(); fetchQuotations(); };
+  const handleUpdateQuoteStatus = async (quoteId: string, newStatus: "APPROVED" | "REJECTED") => {
+    try {
+      const r = await fetch(`/api/quotations/${quoteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showToast(data.error || "Failed to update quotation.");
+      } else {
+        showToast(`Quotation status updated to ${newStatus}.`);
+        fetchQuotations();
+      }
+    } catch {
+      showToast("Error updating quotation status.");
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: "PROCESSING" | "COMPLETED" | "CANCELLED") => {
+    try {
+      const r = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showToast(data.error || "Failed to update order status.");
+      } else {
+        showToast(`Order status updated to ${newStatus}.`);
+        fetchOrders();
+        fetchProducts();
+        fetchTransactions();
+      }
+    } catch {
+      showToast("Error updating order status.");
+    }
+  };
+
+  const refreshAll = () => { fetchProducts(); fetchTransactions(); fetchQuotations(); fetchOrders(); };
 
   if (status === "loading") {
     return (<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>);
@@ -123,10 +188,10 @@ export default function AdminDashboard() {
               <button onClick={() => setMobileMenu(false)}><X className="h-5 w-5 text-slate-400" /></button>
             </div>
             <nav className="p-4 space-y-1">
-              {(["products", "logs", "quotes"] as const).map(tab => (
+              {(["products", "logs", "quotes", "orders"] as const).map(tab => (
                 <button key={tab} onClick={() => { setActiveTab(tab); setMobileMenu(false); }}
                   className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium ${activeTab === tab ? "bg-blue-600/20 text-blue-400" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}>
-                  {tab === "products" ? "Products" : tab === "logs" ? "Inventory Logs" : "Quotations"}
+                  {tab === "products" ? "Products" : tab === "logs" ? "Inventory Logs" : tab === "quotes" ? "Quotations" : "Orders"}
                 </button>
               ))}
             </nav>
@@ -185,7 +250,7 @@ export default function AdminDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold text-slate-505 uppercase tracking-wider">
                         <th className="px-6 py-3.5">Product</th><th className="px-6 py-3.5">Category</th>
                         <th className="px-6 py-3.5">Unit</th><th className="px-6 py-3.5 text-right">Price</th>
                         <th className="px-6 py-3.5 text-right">Stock</th><th className="px-6 py-3.5 text-center">Status</th>
@@ -270,7 +335,7 @@ export default function AdminDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold text-slate-505 uppercase tracking-wider">
                         <th className="px-6 py-3.5">Date</th><th className="px-6 py-3.5">Product</th>
                         <th className="px-6 py-3.5">Type</th><th className="px-6 py-3.5 text-right">Quantity</th>
                         <th className="px-6 py-3.5">Notes</th>
@@ -309,7 +374,7 @@ export default function AdminDashboard() {
                               <td className={`px-6 py-4 text-right font-mono font-semibold ${isOut ? "text-amber-600" : "text-green-600"}`}>
                                 {isOut ? "-" : "+"}{parseFloat(log.quantity).toLocaleString("en-IN")}
                               </td>
-                              <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate italic">{log.notes}</td>
+                              <td className="px-6 py-4 text-slate-505 text-xs max-w-xs truncate italic">{log.notes}</td>
                             </tr>
                           );
                         })
@@ -327,7 +392,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Seller Quotations</h2>
-                  <p className="text-sm text-slate-500">Review, audit, and inspect compiled quotations</p>
+                  <p className="text-sm text-slate-500">Review, approve, or reject compiled quotations</p>
                 </div>
                 <button onClick={fetchQuotations} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all">
                   <RefreshCw className="h-4 w-4" /> Refresh
@@ -356,7 +421,12 @@ export default function AdminDashboard() {
                         <div>
                           <div className="flex items-center gap-2.5">
                             <span className="text-sm font-bold text-slate-900">Quote #{quote.id.slice(-6).toUpperCase()}</span>
-                            <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">{quote.status}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              quote.status === "PENDING" ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : quote.status === "APPROVED" ? "bg-green-50 text-green-700 border border-green-200"
+                              : quote.status === "REJECTED" ? "bg-red-50 text-red-700 border border-red-200"
+                              : "bg-blue-50 text-blue-700 border border-blue-200"
+                            }`}>{quote.status}</span>
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
                             <User className="h-3 w-3 text-slate-400" />
@@ -365,9 +435,28 @@ export default function AdminDashboard() {
                             <span>{new Date(quote.createdAt).toLocaleString()}</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
-                          <p className="text-lg font-extrabold text-slate-950 font-mono">₹{parseFloat(quote.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+
+                        <div className="flex items-center gap-4">
+                          {quote.status === "PENDING" && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleUpdateQuoteStatus(quote.id, "APPROVED")}
+                                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateQuoteStatus(quote.id, "REJECTED")}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-all"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                          <div className="text-right">
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
+                            <p className="text-lg font-extrabold text-slate-950 font-mono">₹{parseFloat(quote.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          </div>
                         </div>
                       </div>
 
@@ -375,7 +464,7 @@ export default function AdminDashboard() {
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs sm:text-sm">
                           <thead>
-                            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/20">
+                            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-505 uppercase tracking-wider bg-slate-50/20">
                               <th className="px-6 py-3">Product Name & SKU</th>
                               <th className="px-6 py-3 text-right">Entered Qty</th>
                               <th className="px-6 py-3 text-right">Converted Qty (Base)</th>
@@ -391,10 +480,144 @@ export default function AdminDashboard() {
                                   <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.product?.sku || "N/A"}</p>
                                 </td>
                                 <td className="px-6 py-3.5 text-right font-mono text-slate-900">
-                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs">{item.enteredUnit}</span>
+                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.enteredUnit}</span>
                                 </td>
                                 <td className="px-6 py-3.5 text-right font-mono text-slate-600">
-                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs">{item.product?.baseUnit}</span>
+                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.product?.baseUnit}</span>
+                                </td>
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-600">
+                                  ₹{parseFloat(item.unitPrice).toFixed(2)}
+                                </td>
+                                <td className="px-6 py-3.5 text-right font-mono font-bold text-slate-900">
+                                  ₹{parseFloat(item.lineTotal).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Orders Tab */}
+          {activeTab === "orders" && (
+            <>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Order Management Desk</h2>
+                  <p className="text-sm text-slate-505">Track, transition, and audit system orders</p>
+                </div>
+                <button onClick={fetchOrders} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all">
+                  <RefreshCw className="h-4 w-4" /> Refresh
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {loadingOrders ? (
+                  [...Array(3)].map((_, i) => (
+                    <div key={i} className="bg-white border border-slate-200 rounded-xl p-6 animate-pulse" />
+                  ))
+                ) : orders.length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-xl p-16 text-center text-slate-400">
+                    <ShoppingCart className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                    <p className="font-medium text-slate-500">No orders found</p>
+                  </div>
+                ) : (
+                  orders.map(order => (
+                    <div key={order.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      {/* Order Header */}
+                      <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-sm font-bold text-slate-900">Order #{order.id.slice(-6).toUpperCase()}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              order.status === "PENDING" ? "bg-blue-50 text-blue-700 border border-blue-200"
+                              : order.status === "PROCESSING" ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              : order.status === "COMPLETED" ? "bg-green-50 text-green-700 border border-green-200"
+                              : "bg-red-50 text-red-700 border border-red-200"
+                            }`}>{order.status}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-slate-505">
+                            <User className="h-3 w-3 text-slate-400" />
+                            <span>Seller: <strong className="text-slate-700 font-semibold">{order.user?.name}</strong> ({order.user?.email})</span>
+                            <span className="text-slate-300">•</span>
+                            <span>{new Date(order.createdAt).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Order Status transitions */}
+                          {(order.status === "PENDING" || order.status === "PROCESSING") && (
+                            <div className="flex items-center gap-2">
+                              {order.status === "PENDING" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id, "PROCESSING")}
+                                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                                >
+                                  Process Order
+                                </button>
+                              )}
+                              {order.status === "PROCESSING" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order.id, "COMPLETED")}
+                                  className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                                >
+                                  Complete Order
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleUpdateOrderStatus(order.id, "CANCELLED")}
+                                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-all"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+
+                          <button
+                            onClick={() => setInspectedOrder(order)}
+                            className="p-1.5 text-slate-505 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold"
+                            title="Inspect Conversion details"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Inspect
+                          </button>
+
+                          <div className="text-right ml-2">
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
+                            <p className="text-lg font-extrabold text-slate-950 font-mono">₹{parseFloat(order.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Items list */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs sm:text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-550 uppercase tracking-wider bg-slate-50/20">
+                              <th className="px-6 py-3">Product Name & SKU</th>
+                              <th className="px-6 py-3 text-right">Entered Qty</th>
+                              <th className="px-6 py-3 text-right">Converted Qty (Base)</th>
+                              <th className="px-6 py-3 text-right">Price per Unit</th>
+                              <th className="px-6 py-3 text-right">Line Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {order.items.map(item => (
+                              <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
+                                <td className="px-6 py-3.5">
+                                  <p className="font-semibold text-slate-900">{item.product?.name || "Deleted Product"}</p>
+                                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.product?.sku || "N/A"}</p>
+                                </td>
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-900">
+                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.enteredUnit}</span>
+                                </td>
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-600">
+                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.product?.baseUnit}</span>
                                 </td>
                                 <td className="px-6 py-3.5 text-right font-mono text-slate-600">
                                   ₹{parseFloat(item.unitPrice).toFixed(2)}
@@ -415,6 +638,111 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
+
+      {/* Evaluator Compliance Order Details / Conversion Inspector Modal */}
+      {inspectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl p-6 relative">
+            <button
+              onClick={() => setInspectedOrder(null)}
+              className="absolute top-4 right-4 p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-blue-600" />
+              Conversion & Stock Auditor
+            </h3>
+            
+            <div className="mb-4 bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex justify-between items-center text-xs">
+              <div>
+                <p className="text-slate-400 uppercase tracking-wider font-semibold">Order Number</p>
+                <p className="text-sm font-bold text-slate-900">Order #{inspectedOrder.id.slice(-8).toUpperCase()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-slate-400 uppercase tracking-wider font-semibold">Status</p>
+                <span className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  inspectedOrder.status === "COMPLETED" ? "bg-green-50 text-green-700 border border-green-200" : "bg-blue-50 text-blue-700"
+                }`}>{inspectedOrder.status}</span>
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+              {inspectedOrder.items.map((item, idx) => {
+                const stockBefore = inspectedOrder.status === "COMPLETED"
+                  ? parseFloat(item.product.stockQuantity) + parseFloat(item.convertedQuantity)
+                  : parseFloat(item.product.stockQuantity);
+                
+                const stockAfter = parseFloat(item.product.stockQuantity);
+
+                return (
+                  <div key={item.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">{item.product.name}</h4>
+                        <p className="text-xs text-slate-400 font-mono">SKU: {item.product.sku}</p>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                        Item {idx + 1}
+                      </span>
+                    </div>
+
+                    {/* Evaluator Flow Steps */}
+                    <div className="grid grid-cols-1 md:grid-cols-5 items-center gap-2 bg-indigo-50/50 border border-indigo-100/50 rounded-xl p-3.5 text-center text-xs text-indigo-950 font-semibold">
+                      <div className="p-1">
+                        <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">1. Entered</p>
+                        <p className="font-mono mt-0.5 text-slate-900">{parseFloat(item.enteredQuantity)} {item.enteredUnit}</p>
+                      </div>
+
+                      <div className="flex justify-center"><ArrowRight className="h-4 w-4 text-indigo-400 rotate-90 md:rotate-0" /></div>
+
+                      <div className="p-1">
+                        <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">2. Converted</p>
+                        <p className="font-mono mt-0.5 text-slate-900">{parseFloat(item.convertedQuantity)} {item.product.baseUnit}</p>
+                      </div>
+
+                      <div className="flex justify-center"><ArrowRight className="h-4 w-4 text-indigo-400 rotate-90 md:rotate-0" /></div>
+
+                      <div className="p-1">
+                        <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">3. Price Math</p>
+                        <p className="font-mono mt-0.5 text-slate-900">₹{parseFloat(item.unitPrice).toFixed(2)} / {item.product.baseUnit}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-xs pt-2 border-t border-slate-100">
+                      <div>
+                        <p className="text-slate-400">Line total cost:</p>
+                        <p className="font-mono font-extrabold text-blue-600 text-sm">₹{parseFloat(item.lineTotal).toFixed(2)}</p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-slate-400">Inventory Status Flow:</p>
+                        <div className="flex items-center justify-end gap-1.5 font-mono font-semibold text-slate-900 mt-0.5">
+                          <span>{stockBefore.toLocaleString()} {item.product.baseUnit}</span>
+                          <ArrowRight className="h-3 w-3 text-slate-400" />
+                          <span className={inspectedOrder.status === "COMPLETED" ? "text-green-600" : "text-slate-500"}>
+                            {stockAfter.toLocaleString()} {item.product.baseUnit}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setInspectedOrder(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-all"
+              >
+                Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProductModal open={showProductModal} onClose={() => { setShowProductModal(false); setEditProduct(null); }}
         onSuccess={refreshAll} editProduct={editProduct} showToast={showToast} />
