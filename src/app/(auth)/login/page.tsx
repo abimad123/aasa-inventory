@@ -157,20 +157,7 @@ function LoginForm() {
             </Link>
           </div>
 
-          <div className="pt-6 border-t border-slate-100 text-center text-xs text-slate-400 space-y-1.5">
-            <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
-              Demo Accounts
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
-              <span className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-600 font-mono text-[10px]">
-                Admin: admin@aasa.com / Admin123
-              </span>
-              <span className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-600 font-mono text-[10px]">
-                Seller: seller@aasa.com / Seller123
-              </span>
-            </div>
-          </div>
-        </div>
+                  </div>
       </div>
     </div>
   );

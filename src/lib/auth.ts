@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
 
         // Fetch user from DB
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email.toLowerCase() },
         });
 
         console.log("User fetched from DB:", user ? { id: user.id, email: user.email, role: user.role } : null);
