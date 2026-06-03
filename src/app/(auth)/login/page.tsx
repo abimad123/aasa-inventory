@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -45,78 +45,130 @@ function LoginForm() {
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 text-white flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center">
-            <LayoutDashboard className="h-5 w-5 text-white" />
+    <div className="min-h-screen flex bg-white font-sans antialiased text-slate-900">
+      {/* Left Panel - Branding (Graphite/Charcoal minimal styling) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-slate-950 text-white flex-col justify-between p-12 relative overflow-hidden">
+        {/* Subtle grid lines background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800c_1px,transparent_1px),linear-gradient(to_bottom,#8080800c_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+        
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="h-8 w-8 rounded bg-white flex items-center justify-center text-slate-950 font-extrabold text-sm">
+            A
           </div>
-          <span className="text-xl font-bold tracking-tight">Aasa Inventory</span>
+          <span className="text-lg font-bold tracking-tight">Aasa Inventory</span>
         </div>
-        <div>
-          <h2 className="text-4xl font-bold tracking-tight leading-tight mb-4">Manage your inventory<br />with confidence.</h2>
-          <p className="text-slate-400 text-lg leading-relaxed max-w-md">
+        
+        <div className="relative z-10 space-y-4">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Enterprise Management Workspace
+          </span>
+          <h2 className="text-4xl font-extrabold tracking-tight leading-tight max-w-md">
+            Manage your inventory with confidence.
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed max-w-sm font-normal">
             A premium enterprise platform for real-time stock tracking, order management, and inventory analytics.
           </p>
         </div>
-        <p className="text-sm text-slate-600">© 2026 Aasa Inventory Systems</p>
+        <p className="text-xs text-slate-505 relative z-10">© 2026 Aasa Inventory Systems</p>
       </div>
 
       {/* Right Panel - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center">
-              <LayoutDashboard className="h-5 w-5 text-white" />
+      <div className="flex-1 flex items-center justify-center p-8 bg-white relative">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="lg:hidden flex items-center gap-2 mb-6">
+            <div className="h-8 w-8 rounded bg-slate-900 flex items-center justify-center text-white font-extrabold text-sm">
+              A
             </div>
             <span className="text-lg font-bold text-slate-900">Aasa Inventory</span>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h2>
-          <p className="text-sm text-slate-500 mb-8">Sign in to your account to continue</p>
+
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-950">Welcome back</h2>
+            <p className="text-sm text-slate-500 mt-1">Sign in to your account to continue</p>
+          </div>
 
           {successMessage && (
-            <div className="mb-6 p-3.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm flex items-start gap-2.5">
-              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" /><span>{successMessage}</span>
+            <div className="p-3.5 rounded-xl bg-green-50 border border-green-200 text-green-700 text-xs flex items-start gap-2.5">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
             </div>
           )}
 
           {error && (
-            <div className="mb-6 p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /><span>{error}</span>
+            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" disabled={loading}
-                className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50 text-sm" />
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={loading}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all disabled:opacity-50"
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" disabled={loading}
-                className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50 text-sm" />
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                disabled={loading}
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all disabled:opacity-50"
+              />
             </div>
-            <button type="submit" disabled={loading}
-              className="w-full py-2.5 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:pointer-events-none text-sm">
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing In...</> : "Sign In"}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs uppercase tracking-wider transition-all disabled:opacity-75 disabled:pointer-events-none flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-slate-505">
-            Don&apos;t have an account? <Link href="/register" className="font-semibold text-slate-900 hover:underline">Register as Seller</Link>
+          <div className="text-center text-xs text-slate-505">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-semibold text-slate-900 hover:underline">
+              Register as Seller
+            </Link>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center text-xs text-slate-400 space-y-1">
-            <p>Demo: admin@aasa.com / Admin123</p>
-            <p>Demo: seller@aasa.com / Seller123</p>
+          <div className="pt-6 border-t border-slate-100 text-center text-xs text-slate-400 space-y-1.5">
+            <p className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
+              Demo Accounts
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+              <span className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-600 font-mono text-[10px]">
+                Admin: admin@aasa.com / Admin123
+              </span>
+              <span className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-600 font-mono text-[10px]">
+                Seller: seller@aasa.com / Seller123
+              </span>
+            </div>
           </div>
         </div>
       </div>
