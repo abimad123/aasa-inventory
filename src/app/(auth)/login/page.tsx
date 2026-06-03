@@ -160,7 +160,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => {
                   setEmail("admin@aasa.com");
-                  setPassword("admin123");
+                  setPassword("Admin123");
                 }}
                 className="text-left p-2.5 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-400 rounded-lg shadow-xs transition-all duration-150"
                 title="Autofill Admin Credentials"
