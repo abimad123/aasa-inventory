@@ -150,14 +150,53 @@ function LoginForm() {
             </button>
           </form>
 
+          {/* Quick Demo Login Helper */}
+          <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 space-y-2">
+            <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+              Quick Demo Access
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("admin@aasa.com");
+                  setPassword("admin123");
+                }}
+                className="text-left p-2.5 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-400 rounded-lg shadow-xs transition-all duration-150"
+                title="Autofill Admin Credentials"
+              >
+                <span className="inline-block text-[9px] bg-slate-950 text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider mb-1">
+                  Admin
+                </span>
+                <span className="block text-xs font-semibold text-slate-700 truncate">admin@aasa.com</span>
+                <span className="block text-[9px] text-slate-400 mt-0.5 font-mono">pass: admin123</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("abijiith@gmail.com");
+                  setPassword("123456");
+                }}
+                className="text-left p-2.5 bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-slate-400 rounded-lg shadow-xs transition-all duration-150"
+                title="Autofill Seller Credentials"
+              >
+                <span className="inline-block text-[9px] bg-blue-600 text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider mb-1">
+                  Seller
+                </span>
+                <span className="block text-xs font-semibold text-slate-700 truncate">abijiith@gmail.com</span>
+                <span className="block text-[9px] text-slate-400 mt-0.5 font-mono">pass: 123456</span>
+              </button>
+            </div>
+          </div>
+
           <div className="text-center text-xs text-slate-505">
             Don&apos;t have an account?{" "}
             <Link href="/register" className="font-semibold text-slate-900 hover:underline">
               Register as Seller
             </Link>
           </div>
-
-                  </div>
+        </div>
       </div>
     </div>
   );
