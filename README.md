@@ -385,17 +385,15 @@ The order lifecycle consists of the following states:
 
 ---
 
-## 13. Deployment
+## Vercel Deployment
 
-### Database (Neon PostgreSQL)
-1.  Log in to Neon and create a new project.
-2.  Retrieve the Connection String.
-3.  Ensure your connection string includes `sslmode=require` for secure transit.
+Step-by-step instructions:
 
-### Frontend & API (Vercel)
-1.  Import your repository into Vercel.
-2.  Add the environment variables (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`) in the project settings.
-3.  Trigger a new deployment. Vercel will build the Next.js routes and compile the production client.
+1. Push to GitHub
+2. Import repository into Vercel
+3. Configure environment variables
+4. Deploy
+5. Run database sync if required (e.g. `npx prisma db push` or integration during build)
 
 ---
 

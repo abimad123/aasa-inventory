@@ -437,6 +437,40 @@ export default function SellerDashboard() {
           </div>
         </header>
 
+        {/* Seller Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between hover:shadow-sm transition-shadow">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">My Quotations</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{pastQuotes.length}</p>
+              <p className="text-[10px] text-slate-400 mt-1.5">Submitted quotation history</p>
+            </div>
+            <div className="p-3 rounded-xl bg-blue-50">
+              <FileText className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between hover:shadow-sm transition-shadow">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">My Orders</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{pastOrders.length}</p>
+              <p className="text-[10px] text-slate-400 mt-1.5">Completed and active orders</p>
+            </div>
+            <div className="p-3 rounded-xl bg-green-50">
+              <ShoppingCart className="h-5 w-5 text-green-600" />
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between hover:shadow-sm transition-shadow">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Orders</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{pastOrders.filter(o => o.status === "PENDING").length}</p>
+              <p className="text-[10px] text-slate-400 mt-1.5">Awaiting admin processing</p>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50">
+              <Clock className="h-5 w-5 text-amber-600" />
+            </div>
+          </div>
+        </div>
+
         {/* Tab Selection */}
         <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-max mb-6">
           <button

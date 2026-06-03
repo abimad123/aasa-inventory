@@ -212,7 +212,7 @@ export default function AdminDashboard() {
           {activeTab === "products" && (
             <>
               <div className="flex flex-col xl:flex-row gap-6 mb-6">
-                <div className="flex-1"><MetricsCards products={products} /></div>
+                <div className="flex-1"><MetricsCards products={products} ordersCount={orders.length} quotationsCount={quotations.length} /></div>
                 <div className="xl:w-72 w-full"><RecentActivity transactions={transactions} loading={loadingLogs} /></div>
               </div>
 
