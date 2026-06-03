@@ -40,7 +40,7 @@ const CATEGORIES = ["All", "Weight", "Volume", "Count", "Bulk", "Electronics", "
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"products" | "logs" | "quotes" | "orders">("products");
+  const [activeTab, setActiveTab] = useState<"overview" | "products" | "logs" | "quotes" | "orders">("overview");
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -182,16 +182,20 @@ export default function AdminDashboard() {
       {mobileMenu && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileMenu(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-slate-900 text-white flex flex-col">
-            <div className="p-4 flex justify-between items-center border-b border-slate-800">
-              <span className="font-bold">Navigation</span>
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-slate-950 text-slate-200 flex flex-col border-r border-slate-900 font-sans">
+            <div className="p-4 flex justify-between items-center border-b border-slate-900">
+              <span className="font-bold text-white">Navigation</span>
               <button onClick={() => setMobileMenu(false)}><X className="h-5 w-5 text-slate-400" /></button>
             </div>
             <nav className="p-4 space-y-1">
-              {(["products", "logs", "quotes", "orders"] as const).map(tab => (
+              {(["overview", "products", "logs", "quotes", "orders"] as const).map(tab => (
                 <button key={tab} onClick={() => { setActiveTab(tab); setMobileMenu(false); }}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium ${activeTab === tab ? "bg-blue-600/20 text-blue-400" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}>
-                  {tab === "products" ? "Products" : tab === "logs" ? "Inventory Logs" : tab === "quotes" ? "Quotations" : "Orders"}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-150 ${
+                    activeTab === tab 
+                      ? "bg-white/10 text-white shadow-sm" 
+                      : "text-slate-400 hover:text-white hover:bg-slate-900/60"
+                  }`}>
+                  {tab === "overview" ? "Overview" : tab === "products" ? "Products" : tab === "logs" ? "Inventory Logs" : tab === "quotes" ? "Quotations" : "Orders"}
                 </button>
               ))}
             </nav>
@@ -207,40 +211,136 @@ export default function AdminDashboard() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:pt-0 pt-14">
+      <main className="flex-1 lg:pt-0 pt-14 bg-slate-50/50">
         <div className="max-w-7xl mx-auto p-4 md:p-8">
-          {activeTab === "products" && (
-            <>
-              <div className="flex flex-col xl:flex-row gap-6 mb-6">
-                <div className="flex-1"><MetricsCards products={products} ordersCount={orders.length} quotationsCount={quotations.length} /></div>
-                <div className="xl:w-72 w-full"><RecentActivity transactions={transactions} loading={loadingLogs} /></div>
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Overview</h2>
+                  <p className="text-xs text-slate-500 font-medium">Real-time stock valuation, order processing, and system operations</p>
+                </div>
+                <button onClick={refreshAll} className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all shadow-sm">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                </button>
               </div>
 
-              {/* Product Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              {/* Metrics Grid */}
+              <MetricsCards products={products} ordersCount={orders.length} quotationsCount={quotations.length} />
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Pending Tasks / Items requiring attention */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Pending Quotations Card */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-amber-500" /> Pending Quotations Review
+                      </h3>
+                      <button onClick={() => setActiveTab("quotes")} className="text-xs font-bold text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-wider">
+                        View all <ArrowRight className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {quotations.filter(q => q.status === "PENDING").slice(0, 3).length === 0 ? (
+                        <p className="text-xs text-slate-400 italic py-2">No pending quotations requiring review</p>
+                      ) : (
+                        quotations.filter(q => q.status === "PENDING").slice(0, 3).map(quote => (
+                          <div key={quote.id} className="flex justify-between items-center p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors text-xs">
+                            <div>
+                              <p className="font-bold text-slate-900">Quote #{quote.id.slice(-6).toUpperCase()}</p>
+                              <p className="text-slate-500 text-[10px] mt-0.5">By {quote.user?.name} • {new Date(quote.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono font-bold text-slate-900">₹{parseFloat(quote.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <div className="flex gap-1.5">
+                                <button onClick={() => handleUpdateQuoteStatus(quote.id, "APPROVED")} className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all">Approve</button>
+                                <button onClick={() => handleUpdateQuoteStatus(quote.id, "REJECTED")} className="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded text-[10px] font-bold uppercase tracking-wider transition-all">Reject</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Pending Orders Card */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4 text-blue-500" /> Active Orders
+                      </h3>
+                      <button onClick={() => setActiveTab("orders")} className="text-xs font-bold text-slate-900 hover:underline flex items-center gap-1 uppercase tracking-wider">
+                        View all <ArrowRight className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {orders.filter(o => o.status === "PENDING" || o.status === "PROCESSING").slice(0, 3).length === 0 ? (
+                        <p className="text-xs text-slate-400 italic py-2">No active orders</p>
+                      ) : (
+                        orders.filter(o => o.status === "PENDING" || o.status === "PROCESSING").slice(0, 3).map(order => (
+                          <div key={order.id} className="flex justify-between items-center p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors text-xs">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900">Order #{order.id.slice(-6).toUpperCase()}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${order.status === "PENDING" ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-indigo-50 text-indigo-700 border border-indigo-200"}`}>{order.status}</span>
+                              </div>
+                              <p className="text-slate-500 text-[10px] mt-0.5">By {order.user?.name} • {new Date(order.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono font-bold text-slate-900">₹{parseFloat(order.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              {order.status === "PENDING" && (
+                                <button onClick={() => handleUpdateOrderStatus(order.id, "PROCESSING")} className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all">Process</button>
+                              )}
+                              {order.status === "PROCESSING" && (
+                                <button onClick={() => handleUpdateOrderStatus(order.id, "COMPLETED")} className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all">Complete</button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Activity Panel */}
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Product Catalog</h2>
-                  <p className="text-sm text-slate-500">{filtered.length} product{filtered.length !== 1 ? "s" : ""} found</p>
+                  <RecentActivity transactions={transactions} loading={loadingLogs} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "products" && (
+            <>
+              {/* Product Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Product Catalog</h2>
+                  <p className="text-xs text-slate-500 font-medium">Manage and edit your business inventory items and base prices</p>
                 </div>
                 <button onClick={() => { setEditProduct(null); setShowProductModal(true); }}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all">
+                  className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm transition-all">
                   <Plus className="h-4 w-4" /> Add Product
                 </button>
               </div>
 
               {/* Filters */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search products..."
-                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
+                    className="w-full pl-10 pr-4 py-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all" />
                 </div>
                 <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-                  className="px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="px-3 py-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-900">
                   {CATEGORIES.map(c => <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>)}
                 </select>
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
-                  className="px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="px-3 py-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-900">
                   <option value="all">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option>
                 </select>
               </div>
@@ -250,14 +350,14 @@ export default function AdminDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold text-slate-505 uppercase tracking-wider">
+                      <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] font-bold text-slate-505 uppercase tracking-wider">
                         <th className="px-6 py-3.5">Product</th><th className="px-6 py-3.5">Category</th>
                         <th className="px-6 py-3.5">Unit</th><th className="px-6 py-3.5 text-right">Price</th>
                         <th className="px-6 py-3.5 text-right">Stock</th><th className="px-6 py-3.5 text-center">Status</th>
                         <th className="px-6 py-3.5 text-center">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
+                    <tbody className="divide-y divide-slate-100 text-xs">
                       {loadingProducts ? (
                         [...Array(5)].map((_, i) => (
                           <tr key={i} className="animate-pulse">
@@ -284,25 +384,25 @@ export default function AdminDashboard() {
                             <tr key={product.id} className="hover:bg-slate-50/70 transition-colors">
                               <td className="px-6 py-4">
                                 <p className="font-semibold text-slate-900">{product.name}</p>
-                                <p className="text-xs text-slate-400 font-mono mt-0.5">{product.sku}</p>
+                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{product.sku}</p>
                               </td>
-                              <td className="px-6 py-4"><span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">{product.category}</span></td>
-                              <td className="px-6 py-4 text-slate-600 text-xs font-medium">{product.baseUnit}</td>
-                              <td className="px-6 py-4 text-right font-mono font-medium text-slate-900">₹{parseFloat(product.pricePerBaseUnit).toFixed(2)}</td>
+                              <td className="px-6 py-4"><span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{product.category}</span></td>
+                              <td className="px-6 py-4 text-slate-600 text-xs font-semibold">{product.baseUnit}</td>
+                              <td className="px-6 py-4 text-right font-mono font-bold text-slate-900">₹{parseFloat(product.pricePerBaseUnit).toFixed(2)}</td>
                               <td className="px-6 py-4 text-right">
-                                <span className={`font-mono font-semibold ${isLow ? "text-red-600" : "text-slate-900"}`}>{stockVal.toLocaleString("en-IN")}</span>
-                                <span className="text-xs text-slate-400 ml-1">{product.baseUnit}</span>
+                                <span className={`font-mono font-bold ${isLow ? "text-red-600" : "text-slate-900"}`}>{stockVal.toLocaleString("en-IN")}</span>
+                                <span className="text-[10px] text-slate-400 font-bold ml-1 uppercase">{product.baseUnit}</span>
                               </td>
                               <td className="px-6 py-4 text-center">
                                 <button onClick={() => handleToggleActive(product)}
-                                  className={`relative w-10 h-5 rounded-full transition-colors ${product.isActive ? "bg-green-500" : "bg-slate-300"}`}>
-                                  <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${product.isActive ? "translate-x-5" : ""}`} />
+                                  className={`relative w-8 h-4 rounded-full transition-colors ${product.isActive ? "bg-slate-900" : "bg-slate-200"}`}>
+                                  <span className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${product.isActive ? "translate-x-4" : ""}`} />
                                 </button>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                <div className="flex items-center justify-center gap-1">
+                                <div className="flex items-center justify-center gap-1.5">
                                   <button onClick={() => { setEditProduct(product); setShowProductModal(true); }}
-                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit">
+                                    className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" title="Edit">
                                     <Pencil className="h-4 w-4" />
                                   </button>
                                   <button onClick={() => { setDeactivateTarget(product); setShowDeactivateModal(true); }}
@@ -326,22 +426,27 @@ export default function AdminDashboard() {
           {activeTab === "logs" && (
             <>
               <div className="flex justify-between items-center mb-6">
-                <div><h2 className="text-xl font-bold text-slate-900">Inventory Transaction Logs</h2><p className="text-sm text-slate-500">Audit trail of all stock changes</p></div>
-                <button onClick={fetchTransactions} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all">
-                  <RefreshCw className="h-4 w-4" /> Refresh
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Inventory Transaction Logs</h2>
+                  <p className="text-xs text-slate-505 font-medium">Audit trail of all stock changes</p>
+                </div>
+                <button onClick={fetchTransactions} className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all shadow-sm">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
                 </button>
               </div>
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-semibold text-slate-505 uppercase tracking-wider">
-                        <th className="px-6 py-3.5">Date</th><th className="px-6 py-3.5">Product</th>
-                        <th className="px-6 py-3.5">Type</th><th className="px-6 py-3.5 text-right">Quantity</th>
+                      <tr className="border-b border-slate-100 bg-slate-50/50 text-[10px] font-bold text-slate-505 uppercase tracking-wider">
+                        <th className="px-6 py-3.5">Date</th>
+                        <th className="px-6 py-3.5">Product</th>
+                        <th className="px-6 py-3.5">Type</th>
+                        <th className="px-6 py-3.5 text-right">Quantity</th>
                         <th className="px-6 py-3.5">Notes</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm">
+                    <tbody className="divide-y divide-slate-100 text-xs">
                       {loadingLogs ? (
                         [...Array(5)].map((_, i) => (
                           <tr key={i} className="animate-pulse">
@@ -359,22 +464,22 @@ export default function AdminDashboard() {
                           const isOut = log.type === "OUT";
                           return (
                             <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
-                              <td className="px-6 py-4 text-slate-500 font-mono text-xs">{new Date(log.createdAt).toLocaleString()}</td>
+                              <td className="px-6 py-4 text-slate-500 font-mono text-[10px]">{new Date(log.createdAt).toLocaleString()}</td>
                               <td className="px-6 py-4">
-                                <p className="font-medium text-slate-900">{log.product?.name || "Deleted"}</p>
-                                <p className="text-xs text-slate-400 font-mono">{log.product?.sku}</p>
+                                <p className="font-semibold text-slate-900">{log.product?.name || "Deleted"}</p>
+                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{log.product?.sku}</p>
                               </td>
                               <td className="px-6 py-4">
-                                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
-                                  log.type === "IN" ? "bg-green-50 text-green-600 border border-green-200"
-                                  : isOut ? "bg-amber-50 text-amber-600 border border-amber-200"
-                                  : "bg-blue-50 text-blue-600 border border-blue-200"
+                                <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+                                  log.type === "IN" ? "bg-green-50 text-green-700 border border-green-200"
+                                  : isOut ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                  : "bg-blue-50 text-blue-700 border border-blue-200"
                                 }`}>{log.type}</span>
                               </td>
-                              <td className={`px-6 py-4 text-right font-mono font-semibold ${isOut ? "text-amber-600" : "text-green-600"}`}>
+                              <td className={`px-6 py-4 text-right font-mono font-bold ${isOut ? "text-amber-700" : "text-green-700"}`}>
                                 {isOut ? "-" : "+"}{parseFloat(log.quantity).toLocaleString("en-IN")}
                               </td>
-                              <td className="px-6 py-4 text-slate-505 text-xs max-w-xs truncate italic">{log.notes}</td>
+                              <td className="px-6 py-4 text-slate-505 max-w-xs truncate italic">{log.notes}</td>
                             </tr>
                           );
                         })
@@ -391,11 +496,11 @@ export default function AdminDashboard() {
             <>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Seller Quotations</h2>
-                  <p className="text-sm text-slate-500">Review, approve, or reject compiled quotations</p>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Seller Quotations</h2>
+                  <p className="text-xs text-slate-500 font-medium">Review, approve, or reject compiled quotations</p>
                 </div>
-                <button onClick={fetchQuotations} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all">
-                  <RefreshCw className="h-4 w-4" /> Refresh
+                <button onClick={fetchQuotations} className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all shadow-sm">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
                 </button>
               </div>
 
@@ -410,8 +515,8 @@ export default function AdminDashboard() {
                 ) : quotations.length === 0 ? (
                   <div className="bg-white border border-slate-200 rounded-xl p-16 text-center text-slate-400">
                     <FileText className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                    <p className="font-medium text-slate-500">No quotations found</p>
-                    <p className="text-xs text-slate-400 mt-1">Quotations created by sellers will appear here.</p>
+                    <p className="font-semibold text-slate-500">No quotations found</p>
+                    <p className="text-xs text-slate-450 mt-1">Quotations created by sellers will appear here.</p>
                   </div>
                 ) : (
                   quotations.map(quote => (
@@ -420,17 +525,17 @@ export default function AdminDashboard() {
                       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <span className="text-sm font-bold text-slate-900">Quote #{quote.id.slice(-6).toUpperCase()}</span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            <span className="text-xs font-bold text-slate-900">Quote #{quote.id.slice(-6).toUpperCase()}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                               quote.status === "PENDING" ? "bg-amber-50 text-amber-700 border border-amber-200"
                               : quote.status === "APPROVED" ? "bg-green-50 text-green-700 border border-green-200"
                               : quote.status === "REJECTED" ? "bg-red-50 text-red-700 border border-red-200"
                               : "bg-blue-50 text-blue-700 border border-blue-200"
                             }`}>{quote.status}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                            <User className="h-3 w-3 text-slate-400" />
-                            <span>Seller: <strong className="text-slate-700 font-semibold">{quote.user?.name}</strong> ({quote.user?.email})</span>
+                          <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
+                            <User className="h-3.5 w-3.5 text-slate-400" />
+                            <span>Seller: <strong className="text-slate-700 font-bold">{quote.user?.name}</strong> ({quote.user?.email})</span>
                             <span className="text-slate-300">•</span>
                             <span>{new Date(quote.createdAt).toLocaleString()}</span>
                           </div>
@@ -441,30 +546,30 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleUpdateQuoteStatus(quote.id, "APPROVED")}
-                                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all"
                               >
                                 Approve
                               </button>
                               <button
                                 onClick={() => handleUpdateQuoteStatus(quote.id, "REJECTED")}
-                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-all"
+                                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
                               >
                                 Reject
                               </button>
                             </div>
                           )}
                           <div className="text-right">
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
-                            <p className="text-lg font-extrabold text-slate-950 font-mono">₹{parseFloat(quote.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Value</p>
+                            <p className="text-base font-extrabold text-slate-950 font-mono">₹{parseFloat(quote.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Items list */}
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs sm:text-sm">
+                        <table className="w-full text-left text-xs">
                           <thead>
-                            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-505 uppercase tracking-wider bg-slate-50/20">
+                            <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-505 uppercase tracking-wider bg-slate-50/20">
                               <th className="px-6 py-3">Product Name & SKU</th>
                               <th className="px-6 py-3 text-right">Entered Qty</th>
                               <th className="px-6 py-3 text-right">Converted Qty (Base)</th>
@@ -472,20 +577,20 @@ export default function AdminDashboard() {
                               <th className="px-6 py-3 text-right">Line Total</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                          <tbody className="divide-y divide-slate-100 text-slate-750">
                             {quote.items.map(item => (
                               <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
                                 <td className="px-6 py-3.5">
                                   <p className="font-semibold text-slate-900">{item.product?.name || "Deleted Product"}</p>
-                                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.product?.sku || "N/A"}</p>
+                                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.product?.sku || "N/A"}</p>
                                 </td>
-                                <td className="px-6 py-3.5 text-right font-mono text-slate-900">
-                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.enteredUnit}</span>
+                                <td className="px-6 py-3.5 text-right font-mono font-semibold text-slate-900">
+                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-[10px] font-bold uppercase">{item.enteredUnit}</span>
                                 </td>
-                                <td className="px-6 py-3.5 text-right font-mono text-slate-600">
-                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.product?.baseUnit}</span>
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-650">
+                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-[10px] font-bold uppercase">{item.product?.baseUnit}</span>
                                 </td>
-                                <td className="px-6 py-3.5 text-right font-mono text-slate-600">
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-650">
                                   ₹{parseFloat(item.unitPrice).toFixed(2)}
                                 </td>
                                 <td className="px-6 py-3.5 text-right font-mono font-bold text-slate-900">
@@ -508,11 +613,11 @@ export default function AdminDashboard() {
             <>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Order Management Desk</h2>
-                  <p className="text-sm text-slate-505">Track, transition, and audit system orders</p>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">Order Management Desk</h2>
+                  <p className="text-xs text-slate-505 font-medium">Track, transition, and audit system orders</p>
                 </div>
-                <button onClick={fetchOrders} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all">
-                  <RefreshCw className="h-4 w-4" /> Refresh
+                <button onClick={fetchOrders} className="flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all shadow-sm">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
                 </button>
               </div>
 
@@ -524,7 +629,7 @@ export default function AdminDashboard() {
                 ) : orders.length === 0 ? (
                   <div className="bg-white border border-slate-200 rounded-xl p-16 text-center text-slate-400">
                     <ShoppingCart className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                    <p className="font-medium text-slate-500">No orders found</p>
+                    <p className="font-semibold text-slate-505">No orders found</p>
                   </div>
                 ) : (
                   orders.map(order => (
@@ -533,17 +638,17 @@ export default function AdminDashboard() {
                       <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <span className="text-sm font-bold text-slate-900">Order #{order.id.slice(-6).toUpperCase()}</span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            <span className="text-xs font-bold text-slate-900">Order #{order.id.slice(-6).toUpperCase()}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                               order.status === "PENDING" ? "bg-blue-50 text-blue-700 border border-blue-200"
                               : order.status === "PROCESSING" ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
                               : order.status === "COMPLETED" ? "bg-green-50 text-green-700 border border-green-200"
                               : "bg-red-50 text-red-700 border border-red-200"
                             }`}>{order.status}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-slate-505">
-                            <User className="h-3 w-3 text-slate-400" />
-                            <span>Seller: <strong className="text-slate-700 font-semibold">{order.user?.name}</strong> ({order.user?.email})</span>
+                          <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-505 font-medium">
+                            <User className="h-3.5 w-3.5 text-slate-400" />
+                            <span>Seller: <strong className="text-slate-700 font-bold">{order.user?.name}</strong> ({order.user?.email})</span>
                             <span className="text-slate-300">•</span>
                             <span>{new Date(order.createdAt).toLocaleString()}</span>
                           </div>
@@ -556,7 +661,7 @@ export default function AdminDashboard() {
                               {order.status === "PENDING" && (
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order.id, "PROCESSING")}
-                                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all"
                                 >
                                   Process Order
                                 </button>
@@ -564,14 +669,14 @@ export default function AdminDashboard() {
                               {order.status === "PROCESSING" && (
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order.id, "COMPLETED")}
-                                  className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                                  className="px-3 py-1.5 bg-green-600 hover:bg-green-750 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all"
                                 >
                                   Complete Order
                                 </button>
                               )}
                               <button
                                 onClick={() => handleUpdateOrderStatus(order.id, "CANCELLED")}
-                                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition-all"
+                                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-red-650 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
                               >
                                 Cancel
                               </button>
@@ -580,7 +685,7 @@ export default function AdminDashboard() {
 
                           <button
                             onClick={() => setInspectedOrder(order)}
-                            className="p-1.5 text-slate-505 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold"
+                            className="p-1.5 text-slate-505 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider"
                             title="Inspect Conversion details"
                           >
                             <Eye className="h-4 w-4" />
@@ -588,17 +693,17 @@ export default function AdminDashboard() {
                           </button>
 
                           <div className="text-right ml-2">
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
-                            <p className="text-lg font-extrabold text-slate-950 font-mono">₹{parseFloat(order.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Value</p>
+                            <p className="text-base font-extrabold text-slate-950 font-mono">₹{parseFloat(order.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Items list */}
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs sm:text-sm">
+                        <table className="w-full text-left text-xs">
                           <thead>
-                            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-550 uppercase tracking-wider bg-slate-50/20">
+                            <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-550 uppercase tracking-wider bg-slate-50/20">
                               <th className="px-6 py-3">Product Name & SKU</th>
                               <th className="px-6 py-3 text-right">Entered Qty</th>
                               <th className="px-6 py-3 text-right">Converted Qty (Base)</th>
@@ -606,20 +711,20 @@ export default function AdminDashboard() {
                               <th className="px-6 py-3 text-right">Line Total</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                          <tbody className="divide-y divide-slate-100 text-slate-750">
                             {order.items.map(item => (
                               <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
                                 <td className="px-6 py-3.5">
                                   <p className="font-semibold text-slate-900">{item.product?.name || "Deleted Product"}</p>
-                                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.product?.sku || "N/A"}</p>
+                                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">{item.product?.sku || "N/A"}</p>
                                 </td>
-                                <td className="px-6 py-3.5 text-right font-mono text-slate-900">
-                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.enteredUnit}</span>
+                                <td className="px-6 py-3.5 text-right font-mono font-semibold text-slate-900">
+                                  {parseFloat(item.enteredQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-[10px] font-bold uppercase">{item.enteredUnit}</span>
                                 </td>
-                                <td className="px-6 py-3.5 text-right font-mono text-slate-600">
-                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-xs font-bold uppercase">{item.product?.baseUnit}</span>
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-650">
+                                  {parseFloat(item.convertedQuantity).toLocaleString("en-IN")} <span className="text-slate-400 text-[10px] font-bold uppercase">{item.product?.baseUnit}</span>
                                 </td>
-                                <td className="px-6 py-3.5 text-right font-mono text-slate-600">
+                                <td className="px-6 py-3.5 text-right font-mono text-slate-650">
                                   ₹{parseFloat(item.unitPrice).toFixed(2)}
                                 </td>
                                 <td className="px-6 py-3.5 text-right font-mono font-bold text-slate-900">
