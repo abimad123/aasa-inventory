@@ -12,7 +12,7 @@ export async function GET() {
   }
 
   try {
-    const orders = await prisma.order.findMany({
+    const quotations = await prisma.quotation.findMany({
       where: session.user.role === "ADMIN" ? {} : { userId: session.user.id },
       include: {
         user: { select: { name: true, email: true } },
@@ -20,9 +20,9 @@ export async function GET() {
       },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(orders);
+    return NextResponse.json(quotations);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch orders";
+    const message = error instanceof Error ? error.message : "Failed to fetch quotations";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -38,18 +38,16 @@ export async function POST(req: NextRequest) {
     const { items } = body; // items array: { productId, enteredQuantity, enteredUnit, unitPrice }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "Order must contain at least one item." }, { status: 400 });
+      return NextResponse.json({ error: "Quotation must contain at least one item." }, { status: 400 });
     }
 
-    // Process order in a database transaction
-    const order = await prisma.$transaction(async (tx) => {
+    const quotation = await prisma.$transaction(async (tx) => {
       let totalAmount = new Decimal(0);
-      const orderItemsData = [];
+      const quotationItemsData = [];
 
       for (const item of items) {
         const { productId, enteredQuantity, enteredUnit, unitPrice } = item;
 
-        // Fetch product within transaction to ensure lock/freshness
         const product = await tx.product.findUnique({
           where: { id: productId },
         });
@@ -58,44 +56,13 @@ export async function POST(req: NextRequest) {
           throw new Error(`Product with ID ${productId} not found.`);
         }
 
-        if (!product.isActive) {
-          throw new Error(`Product "${product.name}" is not active.`);
-        }
-
         const qtyDecimal = new Decimal(enteredQuantity);
         const convertedQty = convertToBaseUnit(qtyDecimal, enteredUnit);
-
-        // Check if there is enough stock
-        if (product.stockQuantity.lt(convertedQty)) {
-          throw new Error(
-            `Insufficient stock for "${product.name}". Required: ${convertedQty.toString()} ${product.baseUnit}, Available: ${product.stockQuantity.toString()} ${product.baseUnit}.`
-          );
-        }
-
-        // Calculate line total
         const priceDecimal = new Decimal(unitPrice);
         const lineTotal = qtyDecimal.mul(priceDecimal);
         totalAmount = totalAmount.add(lineTotal);
 
-        // Deduct product stock
-        await tx.product.update({
-          where: { id: productId },
-          data: {
-            stockQuantity: product.stockQuantity.sub(convertedQty),
-          },
-        });
-
-        // Add to transaction log
-        await tx.inventoryTransaction.create({
-          data: {
-            productId,
-            type: "OUT",
-            quantity: convertedQty,
-            notes: `Order fulfillment. Sold ${enteredQuantity} ${enteredUnit}.`,
-          },
-        });
-
-        orderItemsData.push({
+        quotationItemsData.push({
           productId,
           enteredQuantity: qtyDecimal,
           enteredUnit,
@@ -105,14 +72,13 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Create Order
-      const newOrder = await tx.order.create({
+      const newQuotation = await tx.quotation.create({
         data: {
           userId: session.user.id,
-          status: "COMPLETED", // Automatically completed upon placement
+          status: "PENDING",
           totalAmount,
           items: {
-            create: orderItemsData,
+            create: quotationItemsData,
           },
         },
         include: {
@@ -120,12 +86,12 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return newOrder;
+      return newQuotation;
     });
 
-    return NextResponse.json(order, { status: 201 });
+    return NextResponse.json(quotation, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to process order";
+    const message = error instanceof Error ? error.message : "Failed to process quotation";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
