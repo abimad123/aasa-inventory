@@ -169,7 +169,7 @@ function LoginForm() {
                   Admin
                 </span>
                 <span className="block text-xs font-semibold text-slate-700 truncate">admin@aasa.com</span>
-                <span className="block text-[9px] text-slate-400 mt-0.5 font-mono">pass: admin123</span>
+                <span className="block text-[9px] text-slate-400 mt-0.5 font-mono">pass: Admin123</span>
               </button>
 
               <button
