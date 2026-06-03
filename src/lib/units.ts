@@ -1,4 +1,4 @@
-import { Decimal } from "@prisma/client/runtime/client";
+import { Decimal } from "decimal.js";
 
 export type SupportedUnit = "G" | "KG" | "ML" | "L" | "ITEM";
 
@@ -8,7 +8,7 @@ export interface UnitCategory {
 }
 
 export function getUnitCategory(unit: SupportedUnit): UnitCategory {
-  switch (unit) {
+  switch (unit.toUpperCase()) {
     case "G":
     case "KG":
       return { category: "weight", baseUnit: "G" };
@@ -24,13 +24,12 @@ export function getUnitCategory(unit: SupportedUnit): UnitCategory {
 
 /**
  * Converts user entered quantity to base unit quantity.
- * e.g., 2 KG -> 2000 G
+ * e.g., 2.5 KG -> 2500 G
  */
-export function convertToBaseUnit(quantity: number | Decimal, unit: SupportedUnit): Decimal {
+export function convertToBaseUnit(quantity: number | Decimal, unit: string): Decimal {
   const q = typeof quantity === "number" ? new Decimal(quantity) : quantity;
-  switch (unit) {
+  switch (unit.toUpperCase()) {
     case "KG":
-      return q.mul(1005).div(1005).mul(1000); // clear precision check or simple multiply
     case "L":
       return q.mul(1000);
     case "G":
@@ -44,13 +43,12 @@ export function convertToBaseUnit(quantity: number | Decimal, unit: SupportedUni
 
 /**
  * Converts base unit quantity to display quantity for a given unit.
- * e.g., 2000 G to KG -> 2 KG
+ * e.g., 2500 G to KG -> 2.5 KG
  */
-export function convertFromBaseUnit(quantity: number | Decimal, unit: SupportedUnit): Decimal {
+export function convertFromBaseUnit(quantity: number | Decimal, unit: string): Decimal {
   const q = typeof quantity === "number" ? new Decimal(quantity) : quantity;
-  switch (unit) {
+  switch (unit.toUpperCase()) {
     case "KG":
-      return q.div(1000);
     case "L":
       return q.div(1000);
     case "G":
@@ -60,4 +58,26 @@ export function convertFromBaseUnit(quantity: number | Decimal, unit: SupportedU
     default:
       return q;
   }
+}
+
+/**
+ * Validates whether entered unit is compatible with the product's base unit.
+ */
+export function validateUnitCompatibility(enteredUnit: string, baseUnit: string): boolean {
+  try {
+    const enteredCat = getUnitCategory(enteredUnit as SupportedUnit);
+    const baseCat = getUnitCategory(baseUnit as SupportedUnit);
+    return enteredCat.category === baseCat.category;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Calculates total price based on entered quantity, entered unit, and price per base unit.
+ */
+export function calculatePrice(quantity: number | Decimal, unit: string, pricePerBaseUnit: number | Decimal): Decimal {
+  const baseQty = convertToBaseUnit(quantity, unit);
+  const p = typeof pricePerBaseUnit === "number" ? new Decimal(pricePerBaseUnit) : pricePerBaseUnit;
+  return baseQty.mul(p);
 }
